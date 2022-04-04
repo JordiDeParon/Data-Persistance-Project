@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using System.IO;
 
 public class MainManager : MonoBehaviour
 {
@@ -11,6 +12,7 @@ public class MainManager : MonoBehaviour
     public Rigidbody Ball;
 
     public Text ScoreText;
+    public Text HighScoreText;
     public GameObject GameOverText;
     
     private bool m_Started = false;
@@ -18,13 +20,27 @@ public class MainManager : MonoBehaviour
     
     private bool m_GameOver = false;
 
-    
+    private string m_Name;
+    private string m_HighScorerName;
+    private int m_HighScore;
+
+
     // Start is called before the first frame update
     void Start()
     {
         const float step = 0.6f;
         int perLine = Mathf.FloorToInt(4.0f / step);
+
+        if (DataManager.Instance)
+        {
+            m_Name = DataManager.Instance.newName;
+        }
+        else
+        {
+            m_Name = "NaN";
+        }
         
+
         int[] pointCountArray = new [] {1,1,2,2,5,5};
         for (int i = 0; i < LineCount; ++i)
         {
@@ -36,6 +52,9 @@ public class MainManager : MonoBehaviour
                 brick.onDestroyed.AddListener(AddPoint);
             }
         }
+
+        LoadScore();
+        HighScoreText.text = $"Highscore: {m_HighScorerName}:{m_HighScore}";
     }
 
     private void Update()
@@ -57,7 +76,9 @@ public class MainManager : MonoBehaviour
         {
             if (Input.GetKeyDown(KeyCode.Space))
             {
-                SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+                //SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+                SaveScore();
+                SceneManager.LoadScene(0);
             }
         }
     }
@@ -72,5 +93,63 @@ public class MainManager : MonoBehaviour
     {
         m_GameOver = true;
         GameOverText.SetActive(true);
+    }
+
+    [System.Serializable]
+    class SaveData
+    {
+        public string name;
+        public int score;
+    }
+
+    public void SaveScore()
+    {
+        string json;
+        SaveData data;
+
+        string path = Application.persistentDataPath + "/savefile.json";
+
+        int currentHighScore = 0;
+
+        if (File.Exists(path))
+        {
+            json = File.ReadAllText(path);
+            data = JsonUtility.FromJson<SaveData>(json);
+
+            currentHighScore = data.score;
+        }
+
+        if (m_Name != "NaN" && m_Points > currentHighScore)
+        {
+            data = new SaveData();
+            data.name = m_Name;
+            data.score = m_Points;
+
+            json = JsonUtility.ToJson(data);
+
+            File.WriteAllText(Application.persistentDataPath + "/savefile.json", json);
+        }
+    }
+
+    public void LoadScore()
+    {
+        string path = Application.persistentDataPath + "/savefile.json";
+        if (File.Exists(path))
+        {
+            string json = File.ReadAllText(path);
+            SaveData data = JsonUtility.FromJson<SaveData>(json);
+
+            if (data != null)
+            {
+                m_HighScorerName = data.name;
+                m_HighScore = data.score;
+            }
+            else
+            {
+                m_HighScorerName = "NaN";
+                m_HighScore = 0;
+            }
+            
+        }
     }
 }
